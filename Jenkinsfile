@@ -1,23 +1,19 @@
-pipeline {
-    agent { dockerfile true }
-    stages {
-      stage("build") {
-        steps {
-          echo 'building the application...'
-          sh 'npm install'
-          sh 'npm run build'
-        }
-      }
-        stage('Test') {
-            steps {
-              echo 'testing the application..'
-                sh 'node --version'
-            }
-        }
-        stage("deploy") {
-      steps {
-        echo 'deploying the application...'
-      }
-    }
-    }
+node {
+   def commit_id
+   stage('Preparation') {
+     checkout scm
+     sh "git rev-parse --short HEAD > .git/commit-id"                        
+     commit_id = readFile('.git/commit-id').trim()
+   }
+   stage('test') {
+     nodejs(nodeJSInstallationName: 'NodeJS') {
+       sh 'npm install --only=dev'
+       echo 'Testing..'
+     }
+   }
+   stage('docker build/push') {
+     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub') {
+       def app = docker.build("wardviaene/docker-nodejs-demo:${commit_id}", '.').push()
+     }
+   }
 }
